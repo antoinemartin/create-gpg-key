@@ -18,7 +18,9 @@ The following animation shows a simple usage:
   <img width="600" src="./examples/simple.svg">
 </p>
 
-## Quick SSH Setup
+## Configuration cheat sheets
+
+### Quick SSH Setup
 
 ```console
 # Create a temporary GPG environment
@@ -51,11 +53,58 @@ Hi antoinemartin! You've successfully authenticated, but GitHub does not provide
 Connection to github.com closed.
 ```
 
+### Quick Git commit signature Setup
+
+```console
+# Create a temporary GPG home
+❯ export GNUPGHOME=$(mktemp -d)
+# Import the produced key with only subkey private keys
+❯ gpg --import acf99e63af801653f12d607c9d029ab4947a0e42-antoine-mrtn-fr.sub.asc
+...
+# Create a test git repo
+❯ mkdir repo
+❯ cd repo
+❯ git init .
+Initialized empty Git repository in /root/src/create-gpg-key/repo/.git/
+# Set variables (add --global flag to write in ~/.gitconfig instead of ./.git/config)
+# Name of the first UID of the key
+❯ git config user.name "$(gpg --list-secret-keys --with-colons | awk -F: '$1 == "uid" { print $10; exit; }' | sed -e 's/ <.*$//g')"
+# Email of the key
+❯ git config user.email $(gpg --list-options show-only-fpr-mbox --list-secret-keys | cut -d ' ' -f 2)
+# Set the program used to sign (optional)
+❯ git config gpg.program $(which gpg)
+# Force GPG signing
+❯ git config commit.gpgsign true
+# Set the signing key
+❯ git config user.signingkey $(gpg --list-options show-only-fpr-mbox --list-secret-keys | cut -d ' ' -f 1)
+# Trust our own key (To avoid warnings when checking signatures)
+❯ echo "$(git config user.signingkey):6:" | gpg --import-ownertrust
+gpg: inserting ownertrust of 6
+# Allow entering GPG key password on terminal. This wouldn't work with GUI
+❯ echo "pinentry-mode loopback" > $GNUPGHOME/gpg.conf
+# Create a test file
+❯ echo test > test
+# Commit the test file. Will ask for key password.
+❯ git add -A . &&  git commit -m "Test with signature"
+[main (root-commit) 1817fcf] Test with signature
+ 1 file changed, 1 insertion(+)
+ create mode 100644 test
+# Verify the commit
+❯ git verify-commit HEAD
+gpg: Signature made Sun May  1 11:37:13 2022 UTC
+gpg:                using RSA key 1FA5A3409EC8102A97F7043202E918599139CEAA
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: next trustdb check due at 2024-04-17
+gpg: Good signature from "Antoine Martin <antoine@mrtn.fr>" [ultimate]
+```
+
 ## TODO
 
 - [ ] Document how to use the key. Possible usages:
   - [x] ssh
-  - [ ] git signature
+  - [x] git signature
   - [ ] secrets encryption and transport
 - [ ] Make a powershell script for Windows.
 - [ ] Document how to transfer private keys to a Yubikey.
